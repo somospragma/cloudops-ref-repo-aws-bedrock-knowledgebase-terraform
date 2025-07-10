@@ -262,4 +262,10 @@ resource "aws_bedrockagent_data_source" "data_source" {
   server_side_encryption_configuration {
     kms_key_arn = each.value.ds_config.kms_key_arn
   }
+
+  lifecycle {
+    replace_triggered_by = [
+      aws_bedrockagent_knowledge_base.knowledge_bases
+    ]
+  }
 }
