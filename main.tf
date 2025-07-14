@@ -18,9 +18,12 @@ resource "aws_bedrockagent_knowledge_base" "knowledge_bases" {
       for_each = each.value.vector_knowledge_base_configuration != null ? [each.value.vector_knowledge_base_configuration] : []
       content {
         embedding_model_arn = vector_knowledge_base_configuration.value.embedding_model_arn
-        embedding_model_configuration {
-          bedrock_embedding_model_configuration {
-            dimensions = vector_knowledge_base_configuration.value.dimensions
+        dynamic "embedding_model_configuration" {
+          for_each = vector_knowledge_base_configuration.value.dimensions != null ? [1] : []
+          content {
+            bedrock_embedding_model_configuration {
+              dimensions = vector_knowledge_base_configuration.value.dimensions
+            }
           }
         }
       }
