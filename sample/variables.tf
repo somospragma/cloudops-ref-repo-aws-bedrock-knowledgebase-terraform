@@ -63,6 +63,11 @@ variable "knowledgebases" {
         })
         vector_index_name = string
       }))
+      s3_vectors_configuration = optional(object({
+        index_arn        = optional(string)
+        index_name       = optional(string)
+        vector_bucket_arn = optional(string)
+      }))
     }))
     data_sources = optional(list(object({
       name        = string

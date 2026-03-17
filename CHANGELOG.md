@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [1.1.0] - 2025-03-17
+
+### Added
+
+- Soporte para vector store de tipo Amazon S3 Vectors (`s3_vectors_configuration`) con opciones `index_arn` o `index_name` + `vector_bucket_arn`.
+- Documentación completa de la estructura de la variable `knowledgebases` y `data_sources` en README.md.
+- Tabla de backends de almacenamiento soportados en README.md.
+- Ejemplos de uso con OpenSearch Serverless y S3 Vectors en README.md.
+
+### Changed
+
+- Actualizado `sample/README.md` con información de todos los backends soportados.
+
 ## [1.0.0] - 2025-03-17
 
 ### Added

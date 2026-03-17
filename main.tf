@@ -87,6 +87,15 @@ resource "aws_bedrockagent_knowledge_base" "knowledge_bases" {
         vector_index_name = redis_enterprise_cloud_configuration.value.vector_index_name
       }
     }
+
+    dynamic "s3_vectors_configuration" {
+      for_each = each.value.storage_configuration != null && each.value.storage_configuration.s3_vectors_configuration != null ? [each.value.storage_configuration.s3_vectors_configuration] : []
+      content {
+        index_arn        = s3_vectors_configuration.value.index_arn
+        index_name       = s3_vectors_configuration.value.index_name
+        vector_bucket_arn = s3_vectors_configuration.value.vector_bucket_arn
+      }
+    }
   }
 
   tags = merge(
