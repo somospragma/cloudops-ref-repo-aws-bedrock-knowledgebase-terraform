@@ -1,11 +1,4 @@
-data "aws_caller_identity" "current" {
-  provider = aws.project
-}
-
-data "aws_partition" "current" {
-  provider = aws.project
-}
-
-data "aws_region" "current" {
-  provider = aws.project
-}
+# Data sources del módulo
+# Los Data Sources específicos del negocio deben declararse en el Módulo Raíz (IaC Root)
+# y pasarse al módulo mediante variables de entrada (PC-IAC-011).
+# Solo se permiten Data Sources genéricos en módulos de referencia.

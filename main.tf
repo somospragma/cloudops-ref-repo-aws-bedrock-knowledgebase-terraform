@@ -1,13 +1,12 @@
 #############################################
 #         Bedrock Knowledge Base            #
-# Developed with Amazon Q Developer support #
 #############################################
 
 resource "aws_bedrockagent_knowledge_base" "knowledge_bases" {
   provider = aws.project
   for_each = var.knowledgebases
 
-  name        = "${var.client}-${var.project}-${var.environment}-${each.key}"
+  name        = local.kb_names[each.key]
   description = each.value.description
   role_arn    = each.value.role_arn
 
@@ -78,7 +77,7 @@ resource "aws_bedrockagent_knowledge_base" "knowledge_bases" {
     dynamic "redis_enterprise_cloud_configuration" {
       for_each = each.value.storage_configuration != null && each.value.storage_configuration.redis_enterprise_cloud_configuration != null ? [each.value.storage_configuration.redis_enterprise_cloud_configuration] : []
       content {
-        endpoint               = redis_enterprise_cloud_configuration.value.database_name
+        endpoint               = redis_enterprise_cloud_configuration.value.endpoint
         credentials_secret_arn = redis_enterprise_cloud_configuration.value.credentials_secret_arn
         field_mapping {
           metadata_field = redis_enterprise_cloud_configuration.value.field_mapping.metadata_field
@@ -94,7 +93,7 @@ resource "aws_bedrockagent_knowledge_base" "knowledge_bases" {
     var.common_tags,
     each.value.additional_tags,
     {
-      Name = "${var.client}-${var.project}-${var.environment}-${each.key}"
+      Name = local.kb_names[each.key]
     }
   )
 }
@@ -102,6 +101,7 @@ resource "aws_bedrockagent_knowledge_base" "knowledge_bases" {
 ###########################################
 #         Bedrock Data Sources            #
 ###########################################
+
 resource "aws_bedrockagent_data_source" "data_source" {
   provider = aws.project
   for_each = {
