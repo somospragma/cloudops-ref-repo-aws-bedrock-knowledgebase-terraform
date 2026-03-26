@@ -66,8 +66,8 @@ variable "knowledgebases" {
         vector_index_name = string
       }))
       s3_vectors_configuration = optional(object({
-        index_arn        = optional(string)
-        index_name       = optional(string)
+        index_arn         = optional(string)
+        index_name        = optional(string)
         vector_bucket_arn = optional(string)
       }))
     }))
@@ -83,9 +83,9 @@ variable "knowledgebases" {
             overlap_percentage = number
           }))
           hierarchical_chunking_configuration = optional(object({
-            level_configuration = object({
+            level_configurations = list(object({
               max_tokens = number
-            })
+            }))
             overlap_tokens = number
           }))
           semantic_chunking_configuration = optional(object({
@@ -100,9 +100,15 @@ variable "knowledgebases" {
           lambda_arn    = string
         }))
         parsing_configuration = optional(object({
-          parsing_strategy      = string
-          model_arn             = string
-          parsing_prompt_string = optional(string)
+          parsing_strategy = string
+          bedrock_foundation_model_configuration = optional(object({
+            model_arn             = string
+            parsing_modality      = optional(string)
+            parsing_prompt_string = optional(string)
+          }))
+          bedrock_data_automation_configuration = optional(object({
+            parsing_modality = optional(string)
+          }))
         }))
       }))
       data_source_configuration = object({

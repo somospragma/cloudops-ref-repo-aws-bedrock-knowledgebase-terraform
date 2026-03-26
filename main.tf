@@ -91,8 +91,8 @@ resource "aws_bedrockagent_knowledge_base" "knowledge_bases" {
     dynamic "s3_vectors_configuration" {
       for_each = each.value.storage_configuration != null && each.value.storage_configuration.s3_vectors_configuration != null ? [each.value.storage_configuration.s3_vectors_configuration] : []
       content {
-        index_arn        = s3_vectors_configuration.value.index_arn
-        index_name       = s3_vectors_configuration.value.index_name
+        index_arn         = s3_vectors_configuration.value.index_arn
+        index_name        = s3_vectors_configuration.value.index_name
         vector_bucket_arn = s3_vectors_configuration.value.vector_bucket_arn
       }
     }
@@ -219,8 +219,11 @@ resource "aws_bedrockagent_data_source" "data_source" {
           dynamic "hierarchical_chunking_configuration" {
             for_each = chunking_configuration.value.hierarchical_chunking_configuration != null ? [chunking_configuration.value.hierarchical_chunking_configuration] : []
             content {
-              level_configuration {
-                max_tokens = hierarchical_chunking_configuration.value.level_configuration.max_tokens
+              dynamic "level_configuration" {
+                for_each = hierarchical_chunking_configuration.value.level_configurations
+                content {
+                  max_tokens = level_configuration.value.max_tokens
+                }
               }
               overlap_tokens = hierarchical_chunking_configuration.value.overlap_tokens
             }
@@ -260,10 +263,26 @@ resource "aws_bedrockagent_data_source" "data_source" {
         for_each = vector_ingestion_configuration.value.parsing_configuration != null ? [vector_ingestion_configuration.value.parsing_configuration] : []
         content {
           parsing_strategy = parsing_configuration.value.parsing_strategy
-          bedrock_foundation_model_configuration {
-            model_arn = parsing_configuration.value.model_arn
-            parsing_prompt {
-              parsing_prompt_string = parsing_configuration.value.parsing_prompt_string
+
+          dynamic "bedrock_foundation_model_configuration" {
+            for_each = parsing_configuration.value.bedrock_foundation_model_configuration != null ? [parsing_configuration.value.bedrock_foundation_model_configuration] : []
+            content {
+              model_arn        = bedrock_foundation_model_configuration.value.model_arn
+              parsing_modality = bedrock_foundation_model_configuration.value.parsing_modality
+
+              dynamic "parsing_prompt" {
+                for_each = bedrock_foundation_model_configuration.value.parsing_prompt_string != null ? [1] : []
+                content {
+                  parsing_prompt_string = bedrock_foundation_model_configuration.value.parsing_prompt_string
+                }
+              }
+            }
+          }
+
+          dynamic "bedrock_data_automation_configuration" {
+            for_each = parsing_configuration.value.bedrock_data_automation_configuration != null ? [parsing_configuration.value.bedrock_data_automation_configuration] : []
+            content {
+              parsing_modality = bedrock_data_automation_configuration.value.parsing_modality
             }
           }
         }

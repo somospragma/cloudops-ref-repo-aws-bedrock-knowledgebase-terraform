@@ -220,8 +220,8 @@ data_sources = list(object({
         overlap_percentage = number
       }))
       hierarchical_chunking_configuration = optional(object({
-        level_configuration = object({ max_tokens = number })
-        overlap_tokens      = number
+        level_configurations = list(object({ max_tokens = number }))  # Requiere exactamente 2 niveles (parent + child)
+        overlap_tokens       = number
       }))
       semantic_chunking_configuration = optional(object({
         breakpoint_percentile_threshold = number
@@ -235,9 +235,15 @@ data_sources = list(object({
       lambda_arn    = string
     }))
     parsing_configuration = optional(object({
-      parsing_strategy      = string    # "BEDROCK_FOUNDATION_MODEL"
-      model_arn             = string
-      parsing_prompt_string = optional(string)
+      parsing_strategy = string    # "BEDROCK_FOUNDATION_MODEL", "BEDROCK_DATA_AUTOMATION"
+      bedrock_foundation_model_configuration = optional(object({
+        model_arn             = string
+        parsing_modality      = optional(string)    # "MULTIMODAL"
+        parsing_prompt_string = optional(string)
+      }))
+      bedrock_data_automation_configuration = optional(object({
+        parsing_modality = optional(string)          # "MULTIMODAL"
+      }))
     }))
   }))
 }))
@@ -391,6 +397,148 @@ locals {
   }
 }
 ```
+
+### Data Source con Semantic Chunking
+
+```hcl
+# En locals.tf del Root
+locals {
+  knowledgebases_transformed = {
+    "faq-kb" = {
+      type                       = "VECTOR"
+      storage_configuration_type = "OPENSEARCH_SERVERLESS"
+      role_arn                   = data.aws_iam_role.kb_role.arn
+
+      vector_knowledge_base_configuration = {
+        embedding_model_arn = "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v2:0"
+        dimensions          = 1024
+      }
+
+      storage_configuration = {
+        type = "OPENSEARCH_SERVERLESS"
+        opensearch_serverless_configuration = {
+          collection_arn    = data.aws_opensearchserverless_collection.kb.arn
+          vector_index_name = "bedrock-knowledge-base-default-index"
+          field_mapping = {
+            metadata_field = "AMAZON_BEDROCK_METADATA"
+            text_field     = "AMAZON_BEDROCK_TEXT_CHUNK"
+            vector_field   = "bedrock-knowledge-base-default-vector"
+          }
+        }
+      }
+
+      data_sources = [
+        {
+          name        = "faq-docs"
+          description = "FAQ documents with semantic chunking"
+          kms_key_arn = data.aws_kms_key.bedrock.arn
+
+          data_source_configuration = {
+            type = "S3"
+            s3_configuration = {
+              bucket_arn         = data.aws_s3_bucket.faq.arn
+              inclusion_prefixes = ["faq/"]
+            }
+          }
+
+          # Semantic chunking divide el contenido priorizando significado semántico
+          # sobre estructura sintáctica. Ideal para documentos con secciones de
+          # longitud variable como FAQs, artículos y documentación narrativa.
+          vector_ingestion_configuration = {
+            chunking_configuration = {
+              chunking_strategy = "SEMANTIC"
+              semantic_chunking_configuration = {
+                # Umbral de disimilitud (1-99). Valores más altos = chunks más grandes.
+                # 95 es un buen punto de partida para documentación técnica.
+                breakpoint_percentile_threshold = 95
+                # Número de oraciones adyacentes a considerar para el cálculo de similitud.
+                # 0 = solo la oración actual, 1 = una oración antes y después.
+                buffer_size = 1
+                # Máximo de tokens por chunk. Limita el tamaño incluso si el contenido
+                # es semánticamente coherente.
+                max_token = 300
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+### Data Source con Lambda de Transformación Personalizada
+
+```hcl
+# En locals.tf del Root
+locals {
+  knowledgebases_transformed = {
+    "contracts-kb" = {
+      type                       = "VECTOR"
+      storage_configuration_type = "OPENSEARCH_SERVERLESS"
+      role_arn                   = data.aws_iam_role.kb_role.arn
+
+      vector_knowledge_base_configuration = {
+        embedding_model_arn = "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v2:0"
+        dimensions          = 1024
+      }
+
+      storage_configuration = {
+        type = "OPENSEARCH_SERVERLESS"
+        opensearch_serverless_configuration = {
+          collection_arn    = data.aws_opensearchserverless_collection.kb.arn
+          vector_index_name = "bedrock-knowledge-base-default-index"
+          field_mapping = {
+            metadata_field = "AMAZON_BEDROCK_METADATA"
+            text_field     = "AMAZON_BEDROCK_TEXT_CHUNK"
+            vector_field   = "bedrock-knowledge-base-default-vector"
+          }
+        }
+      }
+
+      data_sources = [
+        {
+          name        = "contracts"
+          description = "Contract documents with custom Lambda transformation"
+          kms_key_arn = data.aws_kms_key.bedrock.arn
+
+          data_source_configuration = {
+            type = "S3"
+            s3_configuration = {
+              bucket_arn         = data.aws_s3_bucket.contracts.arn
+              inclusion_prefixes = ["contracts/"]
+            }
+          }
+
+          vector_ingestion_configuration = {
+            # Primero se aplica el chunking estándar, luego la Lambda post-procesa
+            # los chunks resultantes. Útil para enriquecer metadata, filtrar contenido
+            # sensible, o aplicar lógica de chunking personalizada.
+            chunking_configuration = {
+              chunking_strategy = "FIXED_SIZE"
+              fixed_size_chunking_configuration = {
+                max_tokens         = 500
+                overlap_percentage = 15
+              }
+            }
+
+            # La Lambda recibe los chunks desde S3 (intermediate_storage),
+            # los transforma, y escribe el resultado de vuelta en S3.
+            # step_to_apply solo soporta "POST_CHUNKING" actualmente.
+            custom_transformation_configuration = {
+              s3_uri        = "s3://${data.aws_s3_bucket.intermediate.id}/bedrock/transformations/"
+              step_to_apply = "POST_CHUNKING"
+              lambda_arn    = data.aws_lambda_function.chunk_transformer.arn
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+> **Nota sobre la Lambda de transformación:** La función Lambda recibe un evento con la ubicación S3 de los chunks generados por la estrategia de chunking. Debe leer los chunks, aplicar las transformaciones necesarias (enriquecer metadata, filtrar contenido, re-chunking personalizado), y escribir el resultado en la misma ubicación S3 intermedia. El rol de ejecución de la Lambda necesita permisos de lectura/escritura sobre el bucket intermedio.
 
 Consulte el directorio `sample/` para un ejemplo funcional completo con inyección dinámica de IDs.
 
