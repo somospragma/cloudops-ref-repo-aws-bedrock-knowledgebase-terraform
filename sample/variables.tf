@@ -1,18 +1,24 @@
+# Bedrock Knowledge Base Module - Variables del ejemplo
+
 variable "common_tags" {
   type        = map(string)
   description = "Common tags to be applied to the resources"
+
+  validation {
+    condition     = length(var.common_tags) > 0
+    error_message = "common_tags debe contener al menos una etiqueta."
+  }
 }
 
 variable "knowledgebases" {
   description = "Map of Knowledgebases to create"
   type = map(object({
-    # Agent Configuration
     description                = optional(string, "Bedrock Knowledgebase")
     type                       = string
     storage_configuration_type = string
     vector_knowledge_base_configuration = optional(object({
       embedding_model_arn = string
-      dimensions          = optional(string)
+      dimensions          = optional(number)
       embedding_data_type = optional(string)
     }))
     storage_configuration = optional(object({
@@ -33,7 +39,7 @@ variable "knowledgebases" {
           metadata_field = string
           text_field     = string
         })
-        namespace = string
+        namespace = optional(string)
       }))
       rds_configuration = optional(object({
         database_name          = string
@@ -48,19 +54,22 @@ variable "knowledgebases" {
         })
       }))
       redis_enterprise_cloud_configuration = optional(object({
-        database_name          = string
+        endpoint               = string
         credentials_secret_arn = string
         field_mapping = object({
-          metadata_field    = string
-          primary_key_field = string
-          text_field        = string
-          vector_field      = string
+          metadata_field = string
+          text_field     = string
+          vector_field   = string
         })
         vector_index_name = string
       }))
+      s3_vectors_configuration = optional(object({
+        index_arn         = optional(string)
+        index_name        = optional(string)
+        vector_bucket_arn = optional(string)
+      }))
     }))
-    data_sources = optional(list(object({
-      name        = string
+    data_sources = optional(map(object({
       description = string
       kms_key_arn = optional(string)
       vector_ingestion_configuration = optional(object({
@@ -71,9 +80,9 @@ variable "knowledgebases" {
             overlap_percentage = number
           }))
           hierarchical_chunking_configuration = optional(object({
-            level_configuration = object({
+            level_configurations = list(object({
               max_tokens = number
-            })
+            }))
             overlap_tokens = number
           }))
           semantic_chunking_configuration = optional(object({
@@ -88,9 +97,15 @@ variable "knowledgebases" {
           lambda_arn    = string
         }))
         parsing_configuration = optional(object({
-          parsing_strategy      = string
-          model_arn             = string
-          parsing_prompt_string = optional(string)
+          parsing_strategy = string
+          bedrock_foundation_model_configuration = optional(object({
+            model_arn             = string
+            parsing_modality      = optional(string)
+            parsing_prompt_string = optional(string)
+          }))
+          bedrock_data_automation_configuration = optional(object({
+            parsing_modality = optional(string)
+          }))
         }))
       }))
       data_source_configuration = object({
@@ -105,7 +120,6 @@ variable "knowledgebases" {
           credentials_secret_arn = string
           host_type              = string
           host_url               = string
-          vector_index_name      = string
         }))
         salesforce_configuration = optional(object({
           auth_type              = string
@@ -127,11 +141,10 @@ variable "knowledgebases" {
           crawler_configuration = optional(object({
             exclusion_filters = optional(list(string))
             inclusion_filters = optional(list(string))
-            scope             = optional(list(string))
-            user_agent        = string
+            scope             = optional(string)
             crawler_limits = optional(object({
-              max_pages  = number
-              rate_limit = number
+              max_pages  = optional(number)
+              rate_limit = optional(number)
             }))
           }))
         }))
@@ -149,16 +162,27 @@ variable "knowledgebases" {
 variable "client" {
   description = "Client name for resource naming and tagging"
   type        = string
+
+  validation {
+    condition     = length(var.client) > 0 && length(var.client) <= 10
+    error_message = "client debe tener entre 1 y 10 caracteres."
+  }
 }
 
 variable "project" {
   description = "Project name for resource naming and tagging"
   type        = string
+
+  validation {
+    condition     = length(var.project) > 0 && length(var.project) <= 15
+    error_message = "project debe tener entre 1 y 15 caracteres."
+  }
 }
 
 variable "environment" {
   description = "Environment name for resource naming and tagging"
   type        = string
+
   validation {
     condition     = contains(["dev", "qa", "pdn"], var.environment)
     error_message = "El entorno debe ser uno de: dev, qa, pdn."
@@ -168,9 +192,10 @@ variable "environment" {
 variable "aws_region" {
   description = "Región de AWS donde se desplegarán los recursos"
   type        = string
-  default     = ""
+  default     = "us-east-1"
 }
 
 variable "profile" {
-  description = "Profile AWS"
+  description = "Profile AWS para autenticación local"
+  type        = string
 }

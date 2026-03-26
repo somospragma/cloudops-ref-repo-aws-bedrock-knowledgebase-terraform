@@ -1,85 +1,69 @@
-# Lambda Layers Module - Sample
+# Bedrock Knowledge Base Module - Ejemplo de Uso
 
 ## Descripción
 
-Este directorio contiene un ejemplo completo de cómo usar el módulo `lambda-layers` para crear y gestionar AWS Lambda Layers.
+Este directorio contiene un ejemplo completo de cómo usar el módulo `bedrock-knowledge-base` para crear y gestionar Knowledge Bases en AWS Bedrock con OpenSearch Serverless como backend de almacenamiento vectorial.
+
+El módulo también soporta Pinecone, RDS (pgvector), Redis Enterprise Cloud y Amazon S3 Vectors como backends alternativos.
 
 ## Estructura de archivos
 
 ```
 sample/
-├── README.md                        # Este archivo
-├── data.tf                         # Fuentes de datos
-├── main.tf                         # Configuración principal del ejemplo
-├── outputs.tf                      # Outputs del ejemplo
-├── providers.tf                    # Configuración de proveedores
-├── terraform.auto.tfvars.sample    # Valores de ejemplo
-└── variables.tf                    # Variables del ejemplo
+├── README.md           # Este archivo
+├── data.tf             # Data sources para obtener IDs dinámicos
+├── locals.tf           # Transformaciones e inyección de IDs dinámicos
+├── main.tf             # Invocación del módulo padre
+├── outputs.tf          # Outputs del ejemplo
+├── providers.tf        # Configuración de providers
+├── terraform.tfvars    # Valores de ejemplo
+└── variables.tf        # Variables del ejemplo
 ```
 
 ## Requisitos previos
 
 - Terraform >= 1.0
-- AWS CLI configurado
-- Acceso a AWS con permisos de Lambda y CloudWatch
+- AWS CLI configurado con perfil válido
+- Acceso a AWS con permisos de Bedrock, OpenSearch Serverless y S3
+- Recursos existentes:
+  - Colección OpenSearch Serverless (o el backend vectorial elegido)
+  - Rol IAM con permisos para Bedrock Knowledge Base
+  - Bucket S3 con los documentos fuente
+  - KMS Key para cifrado (opcional)
 
 ## Cómo usar este ejemplo
 
-1. **Copiar archivos de ejemplo**:
-   ```bash
-   cp terraform.auto.tfvars.sample terraform.auto.tfvars
-   ```
+1. Copiar y ajustar los valores en `terraform.tfvars` con los datos de su ambiente
+2. Verificar que los recursos referenciados en `data.tf` existan (rol IAM, colección AOSS, bucket S3, KMS key)
+3. Ejecutar Terraform:
 
-2. **Modificar valores**:
-   Editar `terraform.auto.tfvars` con tus valores específicos
-
-3. **Ejecutar Terraform**:
    ```bash
    terraform init
    terraform plan
    terraform apply
    ```
 
-## Escenarios incluidos
+## Flujo de datos (PC-IAC-026)
 
-- **Layer compilado**: Ejemplo con script de compilación automática
-- **Layer desde archivo**: Ejemplo usando ZIP preexistente
-- **Layer desde S3**: Ejemplo para pipelines CI/CD
+```
+terraform.tfvars → variables.tf → data.tf → locals.tf → main.tf → ../
+     (config)        (tipos)     (consulta)  (transform)  (invoca módulo padre)
+```
 
-## Flujos de trabajo recomendados
+Los campos vacíos (`""`) en `terraform.tfvars` se llenan automáticamente en `locals.tf` con los valores obtenidos de los data sources en `data.tf`.
 
-### Desarrollo Local
-1. Usar tipo `compile` para desarrollo iterativo
-2. Scripts automatizan la instalación de dependencias
-3. Testing local antes de despliegue
+## Backends de almacenamiento
 
-### Pipeline CI/CD
-1. Usar tipo `s3` para artefactos pre-compilados
-2. Gestión de versiones con source_code_hash
-3. Despliegue automatizado
+El ejemplo usa OpenSearch Serverless por defecto. Para usar otro backend, modifique `storage_configuration_type` y el bloque `storage_configuration` correspondiente en `terraform.tfvars`:
 
-## Integración con otros servicios AWS
-
-- **Lambda Functions**: Los layers creados pueden ser referenciados por ARN
-- **CloudWatch**: Logs automáticos de compilación
-- **S3**: Almacenamiento de artefactos para pipelines
-
-## Solución de problemas comunes
-
-### Error: "Archive would be empty"
-- Verificar que los scripts de compilación creen contenido
-- Revisar permisos de ejecución en scripts
-- Validar rutas de directorios
-
-### Error: "Layer name already exists"
-- Verificar nombres únicos por región
-- Considerar usar prefijos por ambiente
-- Revisar tags para identificación
+- `OPENSEARCH_SERVERLESS` → `opensearch_serverless_configuration`
+- `PINECONE` → `pinecone_configuration`
+- `RDS` → `rds_configuration`
+- `REDIS_ENTERPRISE_CLOUD` → `redis_enterprise_cloud_configuration`
+- `S3_VECTORS` → `s3_vectors_configuration`
 
 ## Limpieza
 
 ```bash
 terraform destroy
 ```
-
-**Nota**: Los layers no se eliminan automáticamente si están en uso por funciones Lambda.

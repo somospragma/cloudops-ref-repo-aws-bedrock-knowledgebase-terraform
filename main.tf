@@ -1,13 +1,12 @@
 #############################################
 #         Bedrock Knowledge Base            #
-# Developed with Amazon Q Developer support #
 #############################################
 
 resource "aws_bedrockagent_knowledge_base" "knowledge_bases" {
   provider = aws.project
   for_each = var.knowledgebases
 
-  name        = "${var.client}-${var.project}-${var.environment}-${each.key}"
+  name        = local.kb_names[each.key]
   description = each.value.description
   role_arn    = each.value.role_arn
 
@@ -78,7 +77,7 @@ resource "aws_bedrockagent_knowledge_base" "knowledge_bases" {
     dynamic "redis_enterprise_cloud_configuration" {
       for_each = each.value.storage_configuration != null && each.value.storage_configuration.redis_enterprise_cloud_configuration != null ? [each.value.storage_configuration.redis_enterprise_cloud_configuration] : []
       content {
-        endpoint               = redis_enterprise_cloud_configuration.value.database_name
+        endpoint               = redis_enterprise_cloud_configuration.value.endpoint
         credentials_secret_arn = redis_enterprise_cloud_configuration.value.credentials_secret_arn
         field_mapping {
           metadata_field = redis_enterprise_cloud_configuration.value.field_mapping.metadata_field
@@ -88,13 +87,22 @@ resource "aws_bedrockagent_knowledge_base" "knowledge_bases" {
         vector_index_name = redis_enterprise_cloud_configuration.value.vector_index_name
       }
     }
+
+    dynamic "s3_vectors_configuration" {
+      for_each = each.value.storage_configuration != null && each.value.storage_configuration.s3_vectors_configuration != null ? [each.value.storage_configuration.s3_vectors_configuration] : []
+      content {
+        index_arn         = s3_vectors_configuration.value.index_arn
+        index_name        = s3_vectors_configuration.value.index_name
+        vector_bucket_arn = s3_vectors_configuration.value.vector_bucket_arn
+      }
+    }
   }
 
   tags = merge(
     var.common_tags,
     each.value.additional_tags,
     {
-      Name = "${var.client}-${var.project}-${var.environment}-${each.key}"
+      Name = local.kb_names[each.key]
     }
   )
 }
@@ -102,6 +110,7 @@ resource "aws_bedrockagent_knowledge_base" "knowledge_bases" {
 ###########################################
 #         Bedrock Data Sources            #
 ###########################################
+
 resource "aws_bedrockagent_data_source" "data_source" {
   provider = aws.project
   for_each = {
@@ -109,7 +118,7 @@ resource "aws_bedrockagent_data_source" "data_source" {
   }
 
   knowledge_base_id = aws_bedrockagent_knowledge_base.knowledge_bases[each.value.kb_key].id
-  name              = each.value.ds_config.name
+  name              = each.value.ds_name
   description       = each.value.ds_config.description
 
   data_source_configuration {
@@ -210,8 +219,11 @@ resource "aws_bedrockagent_data_source" "data_source" {
           dynamic "hierarchical_chunking_configuration" {
             for_each = chunking_configuration.value.hierarchical_chunking_configuration != null ? [chunking_configuration.value.hierarchical_chunking_configuration] : []
             content {
-              level_configuration {
-                max_tokens = hierarchical_chunking_configuration.value.level_configuration.max_tokens
+              dynamic "level_configuration" {
+                for_each = hierarchical_chunking_configuration.value.level_configurations
+                content {
+                  max_tokens = level_configuration.value.max_tokens
+                }
               }
               overlap_tokens = hierarchical_chunking_configuration.value.overlap_tokens
             }
@@ -251,10 +263,26 @@ resource "aws_bedrockagent_data_source" "data_source" {
         for_each = vector_ingestion_configuration.value.parsing_configuration != null ? [vector_ingestion_configuration.value.parsing_configuration] : []
         content {
           parsing_strategy = parsing_configuration.value.parsing_strategy
-          bedrock_foundation_model_configuration {
-            model_arn = parsing_configuration.value.model_arn
-            parsing_prompt {
-              parsing_prompt_string = parsing_configuration.value.parsing_prompt_string
+
+          dynamic "bedrock_foundation_model_configuration" {
+            for_each = parsing_configuration.value.bedrock_foundation_model_configuration != null ? [parsing_configuration.value.bedrock_foundation_model_configuration] : []
+            content {
+              model_arn        = bedrock_foundation_model_configuration.value.model_arn
+              parsing_modality = bedrock_foundation_model_configuration.value.parsing_modality
+
+              dynamic "parsing_prompt" {
+                for_each = bedrock_foundation_model_configuration.value.parsing_prompt_string != null ? [1] : []
+                content {
+                  parsing_prompt_string = bedrock_foundation_model_configuration.value.parsing_prompt_string
+                }
+              }
+            }
+          }
+
+          dynamic "bedrock_data_automation_configuration" {
+            for_each = parsing_configuration.value.bedrock_data_automation_configuration != null ? [parsing_configuration.value.bedrock_data_automation_configuration] : []
+            content {
+              parsing_modality = bedrock_data_automation_configuration.value.parsing_modality
             }
           }
         }
