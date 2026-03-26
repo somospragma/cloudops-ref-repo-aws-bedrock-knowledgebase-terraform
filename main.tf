@@ -118,7 +118,7 @@ resource "aws_bedrockagent_data_source" "data_source" {
   }
 
   knowledge_base_id = aws_bedrockagent_knowledge_base.knowledge_bases[each.value.kb_key].id
-  name              = each.value.ds_config.name
+  name              = each.value.ds_name
   description       = each.value.ds_config.description
 
   data_source_configuration {

@@ -155,15 +155,14 @@ knowledgebases = map(object({
     }))
   }))
 
-  data_sources = optional(list(object({...})))  # Ver sección Data Sources
+  data_sources = optional(map(object({...})))  # Ver sección Data Sources
 }))
 ```
 
 ### Estructura de `data_sources`
 
 ```hcl
-data_sources = list(object({
-  name        = string
+data_sources = map(object({
   description = string
   kms_key_arn = optional(string)    # ARN de KMS para cifrado server-side
 
@@ -315,9 +314,8 @@ locals {
         }
       }
 
-      data_sources = [
-        {
-          name        = "technical-docs"
+      data_sources = {
+        "technical-docs" = {
           description = "Technical documentation from S3"
           data_source_configuration = {
             type = "S3"
@@ -336,7 +334,7 @@ locals {
             }
           }
         }
-      ]
+      }
     }
   }
 }
@@ -371,9 +369,8 @@ locals {
         }
       }
 
-      data_sources = [
-        {
-          name        = "product-catalog"
+      data_sources = {
+        "product-catalog" = {
           description = "Product catalog from S3"
           data_source_configuration = {
             type = "S3"
@@ -392,7 +389,7 @@ locals {
             }
           }
         }
-      ]
+      }
     }
   }
 }
@@ -427,9 +424,8 @@ locals {
         }
       }
 
-      data_sources = [
-        {
-          name        = "faq-docs"
+      data_sources = {
+        "faq-docs" = {
           description = "FAQ documents with semantic chunking"
           kms_key_arn = data.aws_kms_key.bedrock.arn
 
@@ -461,7 +457,7 @@ locals {
             }
           }
         }
-      ]
+      }
     }
   }
 }
@@ -496,9 +492,8 @@ locals {
         }
       }
 
-      data_sources = [
-        {
-          name        = "contracts"
+      data_sources = {
+        "contracts" = {
           description = "Contract documents with custom Lambda transformation"
           kms_key_arn = data.aws_kms_key.bedrock.arn
 
@@ -532,7 +527,7 @@ locals {
             }
           }
         }
-      ]
+      }
     }
   }
 }

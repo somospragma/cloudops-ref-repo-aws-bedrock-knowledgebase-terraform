@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-03-26
+
+### Changed
+
+- `data_sources` cambiado de `list(object)` a `map(object)` para estabilidad en `for_each`. La key del map reemplaza el campo `name`, evitando recreaciones accidentales al reordenar o agregar data sources.
+- Actualizado `locals.tf` para iterar `data_sources` como map con `coalesce({})`.
+- Actualizado `main.tf` para usar `ds_name` del local como nombre del recurso.
+- Actualizado `sample/` (variables.tf, locals.tf, terraform.tfvars) con la nueva estructura.
+- Actualizada documentación en README.md con la nueva sintaxis de map.
+
+### Migration
+
+- Cambiar `data_sources = [{ name = "x", ... }]` por `data_sources = { "x" = { ... } }` en los tfvars.
+- Ejecutar `terraform state mv` si es necesario para evitar recreación de data sources existentes.
+
 ## [1.1.0] - 2025-03-17
 
 ### Added

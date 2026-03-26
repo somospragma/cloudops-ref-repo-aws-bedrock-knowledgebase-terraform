@@ -71,8 +71,7 @@ variable "knowledgebases" {
         vector_bucket_arn = optional(string)
       }))
     }))
-    data_sources = optional(list(object({
-      name        = string
+    data_sources = optional(map(object({
       description = string
       kms_key_arn = optional(string)
       vector_ingestion_configuration = optional(object({

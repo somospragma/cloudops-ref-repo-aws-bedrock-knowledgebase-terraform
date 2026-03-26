@@ -21,8 +21,8 @@ locals {
       }) : null
 
       # Transformar data_sources inyectando bucket_arn y kms_key_arn
-      data_sources = config.data_sources != null ? [
-        for ds in config.data_sources : merge(ds, {
+      data_sources = config.data_sources != null ? {
+        for ds_key, ds in config.data_sources : ds_key => merge(ds, {
           kms_key_arn = length(try(ds.kms_key_arn, "")) > 0 ? ds.kms_key_arn : try(data.aws_kms_key.bedrock.arn, null)
           data_source_configuration = merge(ds.data_source_configuration, {
             s3_configuration = ds.data_source_configuration.s3_configuration != null ? merge(
@@ -32,7 +32,7 @@ locals {
             ) : null
           })
         })
-      ] : null
+      } : null
     })
   }
 }
