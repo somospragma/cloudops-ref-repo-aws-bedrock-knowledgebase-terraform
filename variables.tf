@@ -156,10 +156,10 @@ variable "knowledgebases" {
     additional_tags = optional(map(string), {})
   }))
 
-  validation {
-    condition     = length(var.knowledgebases) > 0
-    error_message = "Debe definirse al menos un knowledge base."
-  }
+  # validation {
+  #   condition     = length(var.knowledgebases) > 0
+  #   error_message = "Debe definirse al menos un knowledge base."
+  # }
 }
 
 ###########################################
